@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  package="id.co.rfbnr.flutter_indocard_ocr">
+
+    <application>
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr"/>
+    </application>
+</manifest>
