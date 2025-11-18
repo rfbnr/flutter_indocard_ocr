@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import 'flutter_indocard_ocr_platform_interface.dart';
+import '../platform_interface/flutter_indocard_ocr_platform_interface.dart';
 
 /// An implementation of [FlutterIndocardOcrPlatform] that uses method channels.
 class MethodChannelFlutterIndocardOcr extends FlutterIndocardOcrPlatform {

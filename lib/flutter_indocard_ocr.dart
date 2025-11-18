@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
-import 'flutter_indocard_ocr_platform_interface.dart';
+import 'platform_interface/flutter_indocard_ocr_platform_interface.dart';
 
-class FlutterIndocardOcr {
+class FlutterIndocardOCR {
   Future<String?> getPlatformVersion() {
     return FlutterIndocardOcrPlatform.instance.getPlatformVersion();
   }

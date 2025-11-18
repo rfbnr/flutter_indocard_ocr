@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_indocard_ocr/flutter_indocard_ocr.dart';
-import 'package:flutter_indocard_ocr/flutter_indocard_ocr_platform_interface.dart';
-import 'package:flutter_indocard_ocr/flutter_indocard_ocr_method_channel.dart';
+import 'package:flutter_indocard_ocr/platform_interface/flutter_indocard_ocr_platform_interface.dart';
+import 'package:flutter_indocard_ocr/method_channel/method_channel_flutter_indocard_ocr.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 class MockFlutterIndocardOcrPlatform
@@ -34,7 +34,7 @@ void main() {
   });
 
   test('getPlatformVersion', () async {
-    FlutterIndocardOcr flutterIndocardOcrPlugin = FlutterIndocardOcr();
+    FlutterIndocardOCR flutterIndocardOcrPlugin = FlutterIndocardOCR();
     MockFlutterIndocardOcrPlatform fakePlatform =
         MockFlutterIndocardOcrPlatform();
     FlutterIndocardOcrPlatform.instance = fakePlatform;

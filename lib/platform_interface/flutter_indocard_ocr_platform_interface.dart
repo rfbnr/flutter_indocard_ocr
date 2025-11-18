@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-import 'flutter_indocard_ocr_method_channel.dart';
+import '../method_channel/method_channel_flutter_indocard_ocr.dart';
 
 abstract class FlutterIndocardOcrPlatform extends PlatformInterface {
   /// Constructs a FlutterIndocardOcrPlatform.
