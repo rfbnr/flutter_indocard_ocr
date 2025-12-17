@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Aplikasi memerlukan akses kamera untuk memindai KTP dan NPWP Anda</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Aplikasi memerlukan akses galeri untuk memilih foto KTP atau NPWP Anda</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Aplikasi tidak menggunakan mikrofon</string>
 </dict>
 </plist>
