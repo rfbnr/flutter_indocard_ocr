@@ -1,19 +1,27 @@
 package id.co.rfbnr.flutter_indocard_ocr
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import id.co.rfbnr.flutter_indocard_ocr.ModuleOCR.extractor.MLKitOCRKTPExtractor
-import id.co.rfbnr.flutter_indocard_ocr.ModuleOCR.extractor.MLKitOCRNPWPExtractor
-import io.flutter.embedding.engine.plugins.FlutterPlugin
-import io.flutter.plugin.common.MethodCall
-import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugin.common.MethodChannel.MethodCallHandler
-import io.flutter.plugin.common.MethodChannel.Result
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+ import io.flutter.embedding.engine.plugins.FlutterPlugin
+ import io.flutter.plugin.common.MethodCall
+ import io.flutter.plugin.common.MethodChannel
+ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
+ import io.flutter.plugin.common.MethodChannel.Result
+ import android.graphics.Bitmap
+ import android.graphics.BitmapFactory
+ import android.util.Log
+ import java.util.concurrent.ExecutorService
+ import java.util.concurrent.Executors
+ import com.google.mlkit.vision.common.InputImage
+ import com.google.mlkit.vision.text.TextRecognition
+ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+ import id.co.rfbnr.flutter_indocard_ocr.ModuleOCR.extractor.MLKitOCRKTPExtractor
+ import id.co.rfbnr.flutter_indocard_ocr.ModuleOCR.extractor.MLKitOCRNPWPExtractor
+ import id.co.rfbnr.flutter_indocard_ocr.ModuleOCR.preprocessing.PreprocessingPipeline
+ import id.co.rfbnr.flutter_indocard_ocr.ModuleOCR.preprocessing.PreprocessResult
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.SupervisorJob
+ import kotlinx.coroutines.cancel
+ import kotlinx.coroutines.launch
 
 /** FlutterIndocardOcrPlugin */
 class FlutterIndocardOcrPlugin : FlutterPlugin, MethodCallHandler {
@@ -22,10 +30,12 @@ class FlutterIndocardOcrPlugin : FlutterPlugin, MethodCallHandler {
    // when the Flutter Engine is detached from the Activity
    private lateinit var channel: MethodChannel
 
-   private val executor: ExecutorService = Executors.newSingleThreadExecutor()
+   private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
    private val textRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+   private val preprocessingPipeline = PreprocessingPipeline.createDefault()
 
    companion object {
+       private const val TAG = "FlutterIndocardOcrPlugin"
        private const val CHANNEL_NAME = "flutter_indocard_ocr"
        private const val METHOD_GET_PLATFORM_VERSION = "getPlatformVersion"
        private const val METHOD_SCAN_KTP = "scanKTP"
@@ -60,21 +70,31 @@ class FlutterIndocardOcrPlugin : FlutterPlugin, MethodCallHandler {
        result: Result,
        documentType: DocumentType
    ) {
-       executor.execute {
+       scope.launch {
            try {
                val bitmap = decodeBitmapFromCall(call)
 
                if (bitmap == null) {
                    result.error(ERROR_INVALID_IMAGE, "Failed to decode image", null)
-                   return@execute
+                   return@launch
                }
 
-               processImage(bitmap, documentType, result)
+               // Run preprocessing pipeline (card detection + enhancement)
+               Log.d(TAG, "Starting preprocessing pipeline...")
+               val preprocessResult = preprocessingPipeline.execute(bitmap)
+               val processedBitmap = preprocessResult.getBitmapOrFallback(bitmap)
+               
+               Log.d(TAG, "Preprocessing completed. Starting OCR...")
+
+               // Process the preprocessed image with OCR
+               processImage(processedBitmap, documentType, result)
            } catch (e: Exception) {
+               Log.e(TAG, "Error during scan: ${e.message}", e)
                result.error(ERROR_EXCEPTION, e.message, null)
            }
        }
    }
+   
 
    private fun decodeBitmapFromCall(call: MethodCall): Bitmap? {
        val bytes = call.argument<ByteArray>("image") ?: return null
@@ -100,20 +120,24 @@ class FlutterIndocardOcrPlugin : FlutterPlugin, MethodCallHandler {
                        npwpData.toJsonString()
                    }
                }
+               Log.d(TAG, "OCR completed successfully")
                result.success(jsonString)
            }
            .addOnFailureListener { e ->
+               Log.e(TAG, "OCR failed: ${e.message}", e)
                result.error(ERROR_OCR_FAILED, e.message, null)
            }
    }
 
    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
        channel.setMethodCallHandler(null)
-       executor.shutdown()
+       scope.cancel()
        textRecognizer.close()
+       preprocessingPipeline.close()
    }
 
    private enum class DocumentType {
        KTP, NPWP
    }
 }
+
