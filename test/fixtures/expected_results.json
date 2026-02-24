@@ -1,0 +1,56 @@
+{
+  "ktp_samples": {
+    "ktp_sample": {
+      "nik": "3174012345678901",
+      "nama": "BUDI SANTOSO",
+      "tempatLahir": "JAKARTA",
+      "tanggalLahir": "12-05-1990",
+      "jenisKelamin": "LAKI-LAKI",
+      "alamat": "JL. SUDIRMAN NO. 123",
+      "rtrw": "001/002",
+      "kelurahan": "SENAYAN",
+      "kecamatan": "KEBAYORAN BARU",
+      "agama": "ISLAM",
+      "statusPerkawinan": "BELUM KAWIN",
+      "pekerjaan": "KARYAWAN SWASTA",
+      "kewarganegaraan": "WNI",
+      "provinsi": "DKI JAKARTA",
+      "kota": "JAKARTA SELATAN",
+      "berlakuHingga": "SEUMUR HIDUP"
+    },
+    "ktp_sample_partial": {
+      "nik": "3174012345678901",
+      "nama": "BUDI SANTOSO",
+      "tempatLahir": "-",
+      "tanggalLahir": "-",
+      "jenisKelamin": "-",
+      "alamat": "JL. SUDIRMAN NO. 123",
+      "rtrw": "001/002",
+      "kelurahan": "-",
+      "kecamatan": "-",
+      "agama": "-",
+      "statusPerkawinan": "-",
+      "pekerjaan": "-",
+      "kewarganegaraan": "WNI",
+      "provinsi": "DKI JAKARTA",
+      "kota": "-",
+      "berlakuHingga": "SEUMUR HIDUP"
+    }
+  },
+  "npwp_samples": {
+    "npwp_sample": {
+      "npwp": "12.345.678.9-012.345",
+      "nik": "3174012345678901",
+      "nama": "BUDI SANTOSO",
+      "alamat": "JL. SUDIRMAN NO. 123, JAKARTA SELATAN",
+      "kpp": "KPP PRATAMA JAKARTA KEBAYORAN BARU"
+    },
+    "npwp_sample_partial": {
+      "npwp": "12.345.678.9-012.345",
+      "nik": "",
+      "nama": "BUDI SANTOSO",
+      "alamat": "",
+      "kpp": ""
+    }
+  }
+}
