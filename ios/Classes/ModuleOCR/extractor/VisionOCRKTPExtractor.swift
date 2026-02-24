@@ -1,6 +1,15 @@
 import Foundation
 import Vision
 
+// Enable/disable debug logging
+private let DEBUG_OCR = true
+
+private func debugLog(_ message: String) {
+    if DEBUG_OCR {
+        print("[VisionOCRKTPExtractor] \(message)")
+    }
+}
+
 class VisionOCRKTPExtractor {
 
     // Expected words for certain fields
@@ -36,6 +45,10 @@ class VisionOCRKTPExtractor {
 
         // Full text for debugging
         let fullText = recognizedLines.map { $0.text }.joined(separator: "\n")
+        debugLog("========== OCR FULL TEXT ==========")
+        debugLog(fullText)
+        debugLog("===================================")
+        debugLog("Total recognized lines: \(recognizedLines.count)")
 
         // Process each line
         for (index, line) in recognizedLines.enumerated() {
@@ -56,12 +69,18 @@ class VisionOCRKTPExtractor {
 
             // Extract NIK
             if ktp.nik == nil && text.starts(with: "nik") {
+                debugLog("Found NIK label: '\(originalText)'")
                 if let lineText = findAndClean(
                     currentLine: line,
                     allLines: recognizedLines,
                     key: "NIK"
                 ) {
-                    ktp.nik = lineText.filterNumbersOnly().removeAlphabet()
+                    debugLog("findAndClean returned: '\(lineText)'")
+                    let processed = lineText.filterNumbersOnly().removeAlphabet()
+                    debugLog("After processing: '\(processed)'")
+                    ktp.nik = processed
+                } else {
+                    debugLog("findAndClean returned nil for NIK")
                 }
             }
 
@@ -387,26 +406,26 @@ class VisionOCRKTPExtractor {
         }
 
         // Final result logging
-        // print("========================================")
-        // print("=============== RESULT =================")
-        // print("NIK: \(ktp.nik ?? "-")")
-        // print("Name: \(ktp.nama ?? "-")")
-        // print("Birth Day: \(ktp.tanggalLahir ?? "-")")
-        // print("Place of Birth: \(ktp.tempatLahir ?? "-")")
-        // print("Gender: \(ktp.jenisKelamin ?? "-")")
-        // print("Address: \(ktp.alamat ?? "-")")
-        // print("RT/RW: \(ktp.rtrw ?? "-")")
-        // print("Sub-District: \(ktp.kelurahan ?? "-")")
-        // print("District: \(ktp.kecamatan ?? "-")")
-        // print("Province: \(ktp.provinsi ?? "-")")
-        // print("City: \(ktp.kota ?? "-")")
-        // print("Religion: \(ktp.agama ?? "-")")
-        // print("Marital Status: \(ktp.statusPerkawinan ?? "-")")
-        // print("Occupation: \(ktp.pekerjaan ?? "-")")
-        // print("Nationality: \(ktp.kewarganegaraan ?? "-")")
-        // print("Valid Until: \(ktp.berlakuHingga ?? "SEUMUR HIDUP")")
-        // print("============= END RESULT ===============")
-        // print("========================================")
+        debugLog("========================================")
+        debugLog("=============== RESULT =================")
+        debugLog("NIK: \(ktp.nik ?? "-")")
+        debugLog("Name: \(ktp.nama ?? "-")")
+        debugLog("Birth Day: \(ktp.tanggalLahir ?? "-")")
+        debugLog("Place of Birth: \(ktp.tempatLahir ?? "-")")
+        debugLog("Gender: \(ktp.jenisKelamin ?? "-")")
+        debugLog("Address: \(ktp.alamat ?? "-")")
+        debugLog("RT/RW: \(ktp.rtrw ?? "-")")
+        debugLog("Sub-District: \(ktp.kelurahan ?? "-")")
+        debugLog("District: \(ktp.kecamatan ?? "-")")
+        debugLog("Province: \(ktp.provinsi ?? "-")")
+        debugLog("City: \(ktp.kota ?? "-")")
+        debugLog("Religion: \(ktp.agama ?? "-")")
+        debugLog("Marital Status: \(ktp.statusPerkawinan ?? "-")")
+        debugLog("Occupation: \(ktp.pekerjaan ?? "-")")
+        debugLog("Nationality: \(ktp.kewarganegaraan ?? "-")")
+        debugLog("Valid Until: \(ktp.berlakuHingga ?? "SEUMUR HIDUP")")
+        debugLog("============= END RESULT ===============")
+        debugLog("========================================")
 
         return ktp
     }
@@ -463,7 +482,7 @@ class VisionOCRKTPExtractor {
                 // Try to find additional lines below the inline text
                 if let inlineLine = allLines.first(where: { $0.text == inlineText }) {
                     let additionalLines = findMultiLine(startLine: inlineLine, allLines: allLines)
-                    if !additionalLines.isNotEmpty {
+                    if !additionalLines.isEmpty {
                         return ([cleanedInline] + additionalLines).joined(separator: " ")
                     } else {
                         return cleanedInline
@@ -478,36 +497,44 @@ class VisionOCRKTPExtractor {
     }
 
     /// Find text that's spatially inline with the current line
+    /// Logic matches Android: find all vertically aligned text, return the leftmost one
     private static func findInline(
         currentLine: (text: String, boundingBox: CGRect),
         allLines: [(text: String, boundingBox: CGRect)]
     ) -> String? {
 
-        let top = currentLine.boundingBox.minY
-        let bottom = currentLine.boundingBox.maxY
-        let centerY = (top + bottom) / 2
+        // Vision uses normalized coordinates with origin at BOTTOM-LEFT
+        // minY = bottom, maxY = top in visual terms
+        let bottom = currentLine.boundingBox.minY
+        let top = currentLine.boundingBox.maxY
 
         var candidates: [(text: String, boundingBox: CGRect)] = []
 
         for line in allLines {
             let lineCenterY = (line.boundingBox.minY + line.boundingBox.maxY) / 2
 
-            // Check if line is vertically aligned
-            if lineCenterY >= top && lineCenterY <= bottom && line.text != currentLine.text {
+            // Check if line is vertically aligned (same row)
+            // Match Android logic: just check vertical alignment, not horizontal position
+            let isVerticallyAligned = lineCenterY >= bottom && lineCenterY <= top
+            
+            if isVerticallyAligned && line.text != currentLine.text {
                 candidates.append(line)
             }
         }
 
-        // Find the line with minimum left position
+        // Match Android: find the line with MINIMUM left position (leftmost)
         guard let result = candidates.min(by: { $0.boundingBox.minX < $1.boundingBox.minX }) else {
+            debugLog("findInline: No inline text found for '\(currentLine.text)'")
             return nil
         }
 
+        debugLog("findInline: Found '\(result.text)' inline with '\(currentLine.text)'")
         return result.text
     }
 
     /// Find multiple lines below the current line (for multi-line values)
     /// Stops when encountering a KTP field keyword or when horizontal alignment breaks
+    /// Logic matches Android MLKitOCRKTPExtractor.findMultiLine
     private static func findMultiLine(
         startLine: (text: String, boundingBox: CGRect),
         allLines: [(text: String, boundingBox: CGRect)]
@@ -520,9 +547,12 @@ class VisionOCRKTPExtractor {
         }
 
         // Define horizontal tolerance (allow some deviation in X position)
+        // Match Android: leftBound = left, rightBound = right
         let leftBound = startLine.boundingBox.minX
         let rightBound = startLine.boundingBox.maxX
         let horizontalTolerance = (rightBound - leftBound) * 0.3 // 30% tolerance
+
+        debugLog("findMultiLine: Starting from '\(startLine.text)' at index \(startIndex)")
 
         // Start from the next line
         var currentIndex = startIndex + 1
@@ -532,15 +562,16 @@ class VisionOCRKTPExtractor {
             let candidateText = candidateLine.text.lowercased().trimmingCharacters(in: .whitespaces)
 
             // Check if this line contains a KTP field keyword (stop condition)
+            // Match Android: candidateText.contains(keyword) || candidateText.startsWith(keyword)
             let isKTPField = ktpFieldKeywords.contains { keyword in
-                candidateText.hasPrefix(keyword) || candidateText.contains(keyword)
+                candidateText.contains(keyword) || candidateText.hasPrefix(keyword)
             }
-
-            // if isKTPField {
-            //     break
-            // }
+            
+            // Android doesn't break on isKTPField, so we also don't break here
+            // The horizontal alignment check will handle separation
 
             // Check horizontal alignment (should be roughly in the same X range)
+            // Match Android exactly
             let candidateLeft = candidateLine.boundingBox.minX
             let candidateRight = candidateLine.boundingBox.maxX
 
@@ -548,37 +579,53 @@ class VisionOCRKTPExtractor {
                 (candidateRight <= rightBound + horizontalTolerance * 2)
 
             if !isHorizontallyAligned {
+                debugLog("findMultiLine: Not horizontally aligned '\(candidateLine.text)'")
                 break
             }
 
+            // Check if line looks like a date (should stop)
             let datePattern = "\\d{1,2}[-/\\s]+\\d{1,2}[-/\\s]+\\d{4}"
-
-
             if candidateLine.text.range(of: datePattern, options: .regularExpression) != nil {
+                debugLog("findMultiLine: Stopping at date pattern '\(candidateLine.text)'")
                 break
             }
 
             // Check if line looks like RT/RW or NIK (should stop)
             if candidateLine.text.looksLikeRTRW() || candidateLine.text.looksLikeNIK() {
+                debugLog("findMultiLine: Stopping at RT/RW or NIK '\(candidateLine.text)'")
                 break
             }
 
             // Check vertical distance (should be close to previous line)
+            // For iOS Vision: minY = bottom, maxY = top (origin bottom-left)
+            // "Below" in visual terms means LOWER Y value
+            // Match Android logic: verticalDistance = candidateLine.top - previousLine.bottom
+            // In iOS terms: candidateLine.maxY (its top) should be close to previousLine.minY (its bottom)
             let previousLine = result.isEmpty ? startLine : allLines[currentIndex - 1]
-            let verticalDistance = candidateLine.boundingBox.minY - previousLine.boundingBox.maxY
+            
+            // For Vision coordinates where origin is bottom-left:
+            // Lines are ordered top-to-bottom visually, so Y values decrease
+            // Vertical gap = previousLine.minY (prev bottom) - candidateLine.maxY (current top)
+            let verticalDistance = previousLine.boundingBox.minY - candidateLine.boundingBox.maxY
 
             // If vertical distance is too large, likely a different section
             let lineHeight = previousLine.boundingBox.maxY - previousLine.boundingBox.minY
-            if verticalDistance > lineHeight * 1.5 {
+            
+            // verticalDistance should be small and positive for adjacent lines
+            // Negative means overlap, large positive means gap
+            if verticalDistance > lineHeight * 1.5 || verticalDistance < -lineHeight * 0.5 {
+                debugLog("findMultiLine: Vertical distance too large (\(verticalDistance)) for '\(candidateLine.text)'")
                 break
             }
 
             // Add this line to results
             result.append(candidateLine.text)
+            debugLog("findMultiLine: Added '\(candidateLine.text)'")
 
             currentIndex += 1
         }
 
+        debugLog("findMultiLine: Found \(result.count) additional lines")
         return result
     }
 

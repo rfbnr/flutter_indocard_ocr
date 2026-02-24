@@ -86,6 +86,7 @@ extension String {
         cleaned = cleaned
             .replacingOccurrences(of: ":", with: "")
             .replacingOccurrences(of: "¿", with: "")
+            .replacingOccurrences(of: " : ", with: ", ")
             .replacingOccurrences(of: "  ", with: " ")
             .trimmingCharacters(in: .whitespaces)
 
@@ -183,7 +184,7 @@ extension String {
 
     // Check if string looks like RT/RW pattern
     func looksLikeRTRW() -> Bool {
-        let cleaned = self.replacingOccurrences(of: " ", with: "")
+        let cleaned = self.replacingOccurrences(of: " ", with: "").filterAlphabetToNumber()
 
         // Pattern: XXX/XXX atau XX/XX
         let pattern1 = "^\\d{2,3}[/\\-]\\d{2,3}$"

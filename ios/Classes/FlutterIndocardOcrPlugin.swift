@@ -24,6 +24,11 @@ public class FlutterIndocardOcrPlugin: NSObject, FlutterPlugin {
     }
   }
   
+  // MARK: - Properties
+  
+  /// Preprocessing pipeline for image enhancement before OCR
+  private lazy var preprocessingPipeline = PreprocessingPipeline.createDefault()
+  
   // MARK: - Plugin Registration
   
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -62,16 +67,34 @@ public class FlutterIndocardOcrPlugin: NSObject, FlutterPlugin {
   private func handleScanKTP(call: FlutterMethodCall, result: @escaping FlutterResult) {
     guard let image = extractImageFromCall(call, result: result) else { return }
     
-    performVisionOCR(image: image, documentType: .ktp) { [weak self] data, error in
-      self?.handleOCRResult(data: data, error: error, result: result)
+    // Run preprocessing pipeline before OCR
+    print("[FlutterIndocardOcrPlugin] Starting preprocessing pipeline for KTP...")
+    preprocessingPipeline.execute(image) { [weak self] preprocessResult in
+      guard let self = self else { return }
+      
+      let processedImage = preprocessResult.getImageOrFallback(image)
+      print("[FlutterIndocardOcrPlugin] Preprocessing completed. Starting OCR...")
+      
+      self.performVisionOCR(image: processedImage, documentType: .ktp) { data, error in
+        self.handleOCRResult(data: data, error: error, result: result)
+      }
     }
   }
   
   private func handleScanNPWP(call: FlutterMethodCall, result: @escaping FlutterResult) {
     guard let image = extractImageFromCall(call, result: result) else { return }
     
-    performVisionOCR(image: image, documentType: .npwp) { [weak self] data, error in
-      self?.handleOCRResult(data: data, error: error, result: result)
+    // Run preprocessing pipeline before OCR
+    print("[FlutterIndocardOcrPlugin] Starting preprocessing pipeline for NPWP...")
+    preprocessingPipeline.execute(image) { [weak self] preprocessResult in
+      guard let self = self else { return }
+      
+      let processedImage = preprocessResult.getImageOrFallback(image)
+      print("[FlutterIndocardOcrPlugin] Preprocessing completed. Starting OCR...")
+      
+      self.performVisionOCR(image: processedImage, documentType: .npwp) { data, error in
+        self.handleOCRResult(data: data, error: error, result: result)
+      }
     }
   }
   
@@ -122,6 +145,7 @@ public class FlutterIndocardOcrPlugin: NSObject, FlutterPlugin {
     }
     
     if let data = data {
+      print("[FlutterIndocardOcrPlugin] OCR completed successfully")
       result(data)
     } else {
       result(createFlutterError(
@@ -156,7 +180,13 @@ public class FlutterIndocardOcrPlugin: NSObject, FlutterPlugin {
       return
     }
     
-    let requestHandler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    // CRITICAL: Pass image orientation to Vision for correct bounding box calculations
+    // This is essential for portrait mode images
+    let orientation = cgImageOrientation(from: image.imageOrientation)
+    print("[FlutterIndocardOcrPlugin] Image orientation: \(image.imageOrientation.rawValue) -> CGImagePropertyOrientation: \(orientation.rawValue)")
+    print("[FlutterIndocardOcrPlugin] Image size: \(image.size.width) x \(image.size.height)")
+    
+    let requestHandler = VNImageRequestHandler(cgImage: cgImage, orientation: orientation, options: [:])
     
     let request = VNRecognizeTextRequest { [weak self] (request, error) in
       guard let self = self else { return }
@@ -193,6 +223,31 @@ public class FlutterIndocardOcrPlugin: NSObject, FlutterPlugin {
     }
   }
   
+  /// Convert UIImage.Orientation to CGImagePropertyOrientation
+  /// This is critical for Vision to correctly interpret bounding boxes
+  private func cgImageOrientation(from uiOrientation: UIImage.Orientation) -> CGImagePropertyOrientation {
+    switch uiOrientation {
+    case .up:
+      return .up
+    case .down:
+      return .down
+    case .left:
+      return .left
+    case .right:
+      return .right
+    case .upMirrored:
+      return .upMirrored
+    case .downMirrored:
+      return .downMirrored
+    case .leftMirrored:
+      return .leftMirrored
+    case .rightMirrored:
+      return .rightMirrored
+    @unknown default:
+      return .up
+    }
+  }
+  
   private func extractData(
     from observations: [VNRecognizedTextObservation],
     type: DocumentType
@@ -208,3 +263,4 @@ public class FlutterIndocardOcrPlugin: NSObject, FlutterPlugin {
     }
   }
 }
+
